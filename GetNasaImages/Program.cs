@@ -75,14 +75,42 @@ namespace GetNasaImages
 			DateTime? dt = DateTime.Now;
 			int count = 0;
 
+			StringBuilder html = new StringBuilder();
+			html.AppendLine("<HTML>");
+			html.AppendLine("  <HEAD>");
+			html.AppendLine("     <TITLE>NASA :: Astronomic Picture of the Day</TITLE>");
+			html.AppendLine("     <meta charset='UTF-8'>");
+			html.AppendLine("     <meta name='description' content='Comemorative app to NASA Astronomic Picture of the Day 25 years'>");
+			html.AppendLine("     <meta name='keywords' content='NASA, APOD, Astronomic, Picture, Day'>");
+			html.AppendLine("     <meta name='author' content='NASA'>");
+			html.AppendLine("     <meta name='viewport' content='width=device-width, initial-scale=1.0'>");
+			html.AppendLine("    <STYLE>");
+			html.AppendLine("    .nasaDay{ padding: 20px; } ");
+			html.AppendLine("    .nasaDate{ font-weight:bold; } ");
+			html.AppendLine("    .nasaTitle{ font-weight:bold; } ");
+			html.AppendLine("    .nasaExplanation{ text-align: justify; text-justify: inter - word; padding-top: 10px; padding-bottom: 10px; } ");
+			html.AppendLine("    .nasaCopyright{ font-style:italic; } ");
+			html.AppendLine("    .nasaImage{} ");
+			html.AppendLine("    .nasaPic{ width:100% } ");
+			html.AppendLine("    .nasaVideo{} ");			
+			html.AppendLine("    </STYLE>");
+
+			html.AppendLine("  </HEAD>");
+			html.AppendLine("  <BODY>");
+
 			while (count != days)
 			{
 				NasaAPOD apod = nasaService.getAPOD(false, dt);
-				SaveAPOD(apod, dt);
+				string htmlSection = SaveAPOD(apod, dt);
+
+				html.AppendLine(htmlSection);
 
 				dt = dt?.AddDays(-1);
 				count++;
 			}
+			html.AppendLine("  </BODY>");
+			html.AppendLine("</HTML>");
+			System.IO.File.WriteAllText(@".\NasaAPOD.html", html.ToString());
 		}
 
 		/// <summary>
@@ -90,10 +118,17 @@ namespace GetNasaImages
 		/// </summary>
 		/// <param name="apod"></param>
 		/// <param name="dt"></param>
-		static void SaveAPOD(NasaAPOD apod, DateTime? dt)
+		static string SaveAPOD(NasaAPOD apod, DateTime? dt, bool htmlLoadImagesFromInternet = false)
 		{
+			string html = string.Empty;
+
 			if (apod != null)
-			{
+			{				
+				html += "  <div class='nasaDay'>";
+
+				string lowimg = string.Empty;
+				string hiresimg = string.Empty;
+
 				if (apod.media_type == "image")
 				{
 					if (!Directory.Exists(@".\images\"))
@@ -112,7 +147,8 @@ namespace GetNasaImages
 							string fileName = filePattern.Replace("##DATETIME##", (dt ?? DateTime.Now).ToString("yyyy-MM-dd"))
 														 .Replace("##QUALITY##", "SD")
 														 .Replace("##TITLE##", normalizeName(apod.title));
-							client.DownloadFile(new Uri(apod.url), @".\images\SD\" + fileName);
+							lowimg = @".\images\SD\" + fileName;
+							client.DownloadFile(new Uri(apod.url), lowimg);
 
 							Console.WriteLine(string.Format("NASA have published  at {0}.\nPicture '{1}' => {2}.\nExplanation: {3}\n\n", apod.date, apod.title, ".\\images\\SD\\" + fileName, apod.explanation));
 						}
@@ -122,20 +158,63 @@ namespace GetNasaImages
 							string fileName = filePattern.Replace("##DATETIME##", (dt ?? DateTime.Now).ToString("yyyy-MM-dd"))
 														 .Replace("##QUALITY##", "HD")
 														 .Replace("##TITLE##", normalizeName(apod.title));
-							client.DownloadFile(new Uri(apod.hdurl), @".\images\HD\" + fileName);
+							hiresimg = @".\images\HD\" + fileName;
+							client.DownloadFile(new Uri(apod.hdurl), hiresimg);
 							Console.WriteLine(string.Format("NASA have published  at {0}.\nPicture '{1}' => {2}.\nExplanation: {3}\n\n", apod.date, apod.title, ".\\images\\HD\\" + fileName, apod.explanation));
 						}
 					}
+					html += "<div class='nasaDate'>";
+					html += apod.date;
+					html += "</div>";
+					html += "<div class='nasaTitle'>";
+					html += apod.title;
+					html += "</div>";
+					html += "<div class='nasaExplanation'>";
+					html += apod.explanation;
+					html += "</div>";
+					html += "<div class='nasaImage'>";
+					if (htmlLoadImagesFromInternet)
+					{
+						html += string.Format("<img class='nasaPic' src='{0}' lowsrc='{1}' alt='{2}'>", apod.hdurl, apod.url, apod.title);
+					}
+					else 
+					{
+						html += string.Format("<img class='nasaPic' src='{0}' lowsrc='{1}' alt='{2}'>", hiresimg, lowimg, apod.title);
+					}
+					html += "</div>";
+					html += "<div class='nasaCopyright'>";
+					html += "<span style='font-weight:bold;font-style=none;'>Copyright</span> " + apod.copyright;
+					html += "</div>";
 				}
 				else
 				{
+					if (apod.media_type == "video")
+					{
+						html += "<div class='nasaDate'>";
+						html += apod.date;
+						html += "</div>";
+						html += "<div class='nasaTitle'>";
+						html += apod.title;
+						html += "</div>";
+						html += "<div class='nasaExplanation'>";
+						html += apod.explanation;
+						html += "</div>";
+						html += "<div class='nasaImage'>";
+						html += string.Format("<embed class='nasaVideo' src='{0}' alt='{1}'>", apod.url, apod.title);
+						html += "</div>";
+						html += "<div class='nasaCopyright'>";
+						html += "<span style='font-weight:bold;font-style=none;'>Copyright</span> " + apod.copyright;
+						html += "</div>";
+					}
 					Console.WriteLine(string.Format("NASA have published a {1} at {0}.\nBrowse '{3}' at {2}.\n\n", apod.date, apod.media_type, apod.url, apod.title));
 				}
+				html += "  </div>";
 			}
 			else
 			{
 				Console.WriteLine(string.Format("NASA do not have published image at {0}.\n\n", (dt ?? DateTime.Now).ToString("yyyy-MM-dd")));
 			}
+			return html;
 		}
 
 		/// <summary>
@@ -145,7 +224,7 @@ namespace GetNasaImages
 		/// <returns></returns>
 		static string normalizeName(string name)
 		{
-			return name.Replace(" ", "-").Replace("?", "").Replace("\\", "").ToUpper();
+			return name.Replace(" ", "-").Replace("?", "").Replace("\\", "").Replace("'", "").ToUpper();
 		}
 	}
 }
