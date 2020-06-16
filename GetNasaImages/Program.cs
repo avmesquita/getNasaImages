@@ -92,7 +92,7 @@ namespace GetNasaImages
 			html.AppendLine("    .nasaCopyright{ font-style:italic; } ");
 			html.AppendLine("    .nasaImage{} ");
 			html.AppendLine("    .nasaPic{ width:100% } ");
-			html.AppendLine("    .nasaVideo{} ");			
+			html.AppendLine("    .nasaVideo{} ");
 			html.AppendLine("    </STYLE>");
 
 			html.AppendLine("  </HEAD>");
@@ -123,7 +123,7 @@ namespace GetNasaImages
 			string html = string.Empty;
 
 			if (apod != null)
-			{				
+			{
 				html += "  <div class='nasaDay'>";
 
 				string lowimg = string.Empty;
@@ -175,7 +175,7 @@ namespace GetNasaImages
 					{
 						html += string.Format("<img class='nasaPic' src='{0}' lowsrc='{1}' alt='{2}'>", apod.hdurl, apod.url, apod.title);
 					}
-					else 
+					else
 					{
 						html += string.Format("<img class='nasaPic' src='{0}' lowsrc='{1}' alt='{2}'>", hiresimg, lowimg, apod.title);
 					}
@@ -184,28 +184,30 @@ namespace GetNasaImages
 					html += "<span style='font-weight:bold;font-style=none;'>Copyright</span> " + apod.copyright;
 					html += "</div>";
 				}
-				else
+				else if (apod.media_type == "video")
 				{
-					if (apod.media_type == "video")
-					{
-						html += "<div class='nasaDate'>";
-						html += apod.date;
-						html += "</div>";
-						html += "<div class='nasaTitle'>";
-						html += apod.title;
-						html += "</div>";
-						html += "<div class='nasaExplanation'>";
-						html += apod.explanation;
-						html += "</div>";
-						html += "<div class='nasaImage'>";
-						html += string.Format("<embed class='nasaVideo' src='{0}' alt='{1}'>", apod.url, apod.title);
-						html += "</div>";
-						html += "<div class='nasaCopyright'>";
-						html += "<span style='font-weight:bold;font-style=none;'>Copyright</span> " + apod.copyright;
-						html += "</div>";
-					}
-					Console.WriteLine(string.Format("NASA have published a {1} at {0}.\nBrowse '{3}' at {2}.\n\n", apod.date, apod.media_type, apod.url, apod.title));
+					html += "<div class='nasaDate'>";
+					html += apod.date;
+					html += "</div>";
+					html += "<div class='nasaTitle'>";
+					html += apod.title;
+					html += "</div>";
+					html += "<div class='nasaExplanation'>";
+					html += apod.explanation;
+					html += "</div>";
+					html += "<div class='nasaImage'>";
+					html += string.Format("<embed class='nasaVideo' src='{0}' alt='{1}'>", apod.url, apod.title);
+					html += "</div>";
+					html += "<div class='nasaCopyright'>";
+					html += "<span style='font-weight:bold;font-style=none;'>Copyright</span> " + apod.copyright;
+					html += "</div>";
 				}
+				else 
+				{
+					Console.WriteLine("Media Type '{0}' is not included to html.\n\n", apod.media_type);
+				}
+				Console.WriteLine(string.Format("NASA have published a {1} at {0}.\nBrowse '{3}' at {2}.\n\n", apod.date, apod.media_type, apod.url, apod.title));
+
 				html += "  </div>";
 			}
 			else
