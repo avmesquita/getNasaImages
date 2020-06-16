@@ -13,17 +13,14 @@ namespace GetNasaImages
 	class Program
 	{
 		public static IConfigurationRoot configuration;
+		public static INasaService nasaService;
 
 		static string filePattern = "Nasa-APOD-##DATETIME##-##QUALITY##-##TITLE##.jpg";
-
-		static string NasaApiKey;
 
 		static void Main(string[] args)
 		{
 			ServiceCollection serviceCollection = new ServiceCollection();
 			ConfigureServices(serviceCollection);
-
-			NasaApiKey = configuration["NasaApiKey"];
 
 			loopToPast((args.Length > 1) ? IsInteger(args[1]) : 1);
 		}
@@ -36,6 +33,10 @@ namespace GetNasaImages
 			.Build();
 
 			serviceCollection.AddSingleton<IConfigurationRoot>(configuration);
+
+			nasaService = new NasaService(configuration["NasaApiKey"]);
+
+			serviceCollection.AddSingleton<INasaService>(nasaService);
 		}
 
 		static Int32? IsInteger(string i)
@@ -57,7 +58,7 @@ namespace GetNasaImages
 
 			while (count != days)
 			{
-				NasaAPOD apod = new NasaService(NasaApiKey).getAPOD(false, dt);
+				NasaAPOD apod = nasaService.getAPOD(false, dt);
 				SaveAPOD(apod, dt);
 
 				dt = dt?.AddDays(-1);

@@ -8,7 +8,7 @@ using System.Net;
 
 namespace GetNasaImages
 {
-	public class NasaService
+	public class NasaService : INasaService
 	{
 		string api_key { get; set; }
 
