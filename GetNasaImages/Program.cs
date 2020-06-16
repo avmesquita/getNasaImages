@@ -149,8 +149,6 @@ namespace GetNasaImages
 														 .Replace("##TITLE##", normalizeName(apod.title));
 							lowimg = @".\images\SD\" + fileName;
 							client.DownloadFile(new Uri(apod.url), lowimg);
-
-							Console.WriteLine(string.Format("NASA have published  at {0}.\nPicture '{1}' => {2}.\nExplanation: {3}\n\n", apod.date, apod.title, ".\\images\\SD\\" + fileName, apod.explanation));
 						}
 
 						if (!string.IsNullOrEmpty(apod.hdurl))
@@ -160,8 +158,8 @@ namespace GetNasaImages
 														 .Replace("##TITLE##", normalizeName(apod.title));
 							hiresimg = @".\images\HD\" + fileName;
 							client.DownloadFile(new Uri(apod.hdurl), hiresimg);
-							Console.WriteLine(string.Format("NASA have published  at {0}.\nPicture '{1}' => {2}.\nExplanation: {3}\n\n", apod.date, apod.title, ".\\images\\HD\\" + fileName, apod.explanation));
 						}
+						Console.WriteLine(string.Format("NASA have published  at {0}.\nPicture '{1}' => {2} and {3}.\n\n", apod.date, apod.title, lowimg, hiresimg));
 					}
 					html += "<div class='nasaDate'>";
 					html += apod.date;
