@@ -72,7 +72,7 @@ namespace GetNasaImages
 		/// <param name="days"></param>
 		static void loopToPast(int? days)
 		{
-			DateTime? dt = DateTime.Now;
+			DateTime? dt = Convert.ToDateTime("2019-10-24");  //DateTime.Now;
 			int count = 0;
 
 			StringBuilder html = new StringBuilder();
@@ -163,7 +163,7 @@ namespace GetNasaImages
 								hiresimg = @".\images\HD\" + fileName;
 								client.DownloadFile(new Uri(apod.hdurl), hiresimg);
 							}
-							Console.WriteLine(string.Format("NASA have published  at {0}.\nPicture '{1}' => SRes = {2} and HiRes = {3}.\n\n", apod.date, apod.title, lowimg, hiresimg));
+							Console.WriteLine(string.Format("NASA have published a picture at {0}.\nBrowse '{1}' => \nSRes  = {2} \nHiRes = {3}.\n\n", apod.date, apod.title, lowimg, hiresimg));
 						}
 						html += "<div class='nasaDate'>";
 						html += apod.date;
@@ -211,12 +211,16 @@ namespace GetNasaImages
 							html += "<span style='font-weight:bold;font-style=none;'>Copyright</span> - " + apod.copyright;
 							html += "</div>";
 						}
+						Console.WriteLine(string.Format("NASA have published a video at {0}.\nBrowse '{3}' => \n{2}.\n\n", apod.date, apod.media_type, apod.url, apod.title));
 					}
 					else
 					{
-						Console.WriteLine("Media Type '{0}' is not included to html.\n\n", apod.media_type);
-					}
-					Console.WriteLine(string.Format("NASA have published a {1} at {0}.\nBrowse '{3}' at {2}.\n\n", apod.date, apod.media_type, apod.url, apod.title));
+						if (!string.IsNullOrEmpty(apod.media_type))
+						{
+							Console.WriteLine("Media Type '{0}' is not included to html.\n\n", apod.media_type);
+							Console.WriteLine(string.Format("NASA have published a {1} at {0}.\nBrowse '{3}' => \n{2}.\n\n", apod.date, apod.media_type, apod.url, apod.title));
+						}
+					}					
 
 					html += "  </div>";
 				}
@@ -236,7 +240,13 @@ namespace GetNasaImages
 		/// <returns></returns>
 		static string normalizeName(string name)
 		{
-			return name.Replace(" ", "-").Replace("?", "").Replace(@"\", "").Replace("'", "").ToUpper();
+			return name.Replace(" ", "-")
+				       .Replace("?", "")
+					   .Replace(@"\", "")
+					   .Replace("'", "")
+					   .Replace(",", "-")
+					   .Replace(";", "-")
+					   .ToUpper();
 		}
 	}
 }
