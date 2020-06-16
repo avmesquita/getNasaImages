@@ -17,14 +17,24 @@ namespace GetNasaImages
 
 		static string filePattern = "Nasa-APOD-##DATETIME##-##QUALITY##-##TITLE##.jpg";
 
+		/// <summary>
+		/// Main routine
+		/// </summary>
+		/// <param name="args"></param>
 		static void Main(string[] args)
 		{
 			ServiceCollection serviceCollection = new ServiceCollection();
 			ConfigureServices(serviceCollection);
 
+			//IServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
+
 			loopToPast((args.Length >= 1) ? IsInteger(args[0]) : 1);
 		}
 
+		/// <summary>
+		/// .net core pattern
+		/// </summary>
+		/// <param name="serviceCollection"></param>
 		private static void ConfigureServices(ServiceCollection serviceCollection)
 		{
 			configuration = new ConfigurationBuilder()
@@ -39,6 +49,11 @@ namespace GetNasaImages
 			serviceCollection.AddSingleton<INasaService>(nasaService);
 		}
 
+		/// <summary>
+		/// Simple validation
+		/// </summary>
+		/// <param name="i"></param>
+		/// <returns></returns>
 		static Int32? IsInteger(string i)
 		{
 			try
@@ -51,6 +66,10 @@ namespace GetNasaImages
 			}
 		}
 
+		/// <summary>
+		/// Main loop to get pictures
+		/// </summary>
+		/// <param name="days"></param>
 		static void loopToPast(int? days)
 		{
 			DateTime? dt = DateTime.Now;
@@ -66,6 +85,11 @@ namespace GetNasaImages
 			}
 		}
 
+		/// <summary>
+		/// Save APOD images
+		/// </summary>
+		/// <param name="apod"></param>
+		/// <param name="dt"></param>
 		static void SaveAPOD(NasaAPOD apod, DateTime? dt)
 		{
 			if (apod != null)
@@ -111,6 +135,11 @@ namespace GetNasaImages
 			}
 		}
 
+		/// <summary>
+		/// Normalize Title to fill filename correctly
+		/// </summary>
+		/// <param name="name"></param>
+		/// <returns></returns>
 		static string normalizeName(string name)
 		{
 			return name.Replace(" ", "-").Replace("?", "").Replace("\\", "").ToUpper();
