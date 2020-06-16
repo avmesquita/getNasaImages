@@ -113,6 +113,8 @@ namespace GetNasaImages
 														 .Replace("##QUALITY##", "SD")
 														 .Replace("##TITLE##", normalizeName(apod.title));
 							client.DownloadFile(new Uri(apod.url), @".\images\SD\" + fileName);
+
+							Console.WriteLine(string.Format("NASA have published  at {0}.\nPicture '{1}' => {2}.\n\n", apod.date, apod.title, ".\\images\\SD\\" + fileName));
 						}
 
 						if (!string.IsNullOrEmpty(apod.hdurl))
@@ -121,12 +123,13 @@ namespace GetNasaImages
 														 .Replace("##QUALITY##", "HD")
 														 .Replace("##TITLE##", normalizeName(apod.title));
 							client.DownloadFile(new Uri(apod.hdurl), @".\images\HD\" + fileName);
+							Console.WriteLine(string.Format("NASA have published  at {0}.\nPicture '{1}' => {2}.\n\n", apod.date, apod.title, ".\\images\\HD\\" + fileName));
 						}
 					}
 				}
 				else
 				{
-					Console.WriteLine(string.Format("NASA have published a {1} at {0}.\nBrowse '{3}' at {2}.\n\n", (dt ?? DateTime.Now).ToString("yyyy-MM-dd"), apod.media_type, apod.url, apod.title));
+					Console.WriteLine(string.Format("NASA have published a {1} at {0}.\nBrowse '{3}' at {2}.\n\n", apod.date, apod.media_type, apod.url, apod.title));
 				}
 			}
 			else
