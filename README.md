@@ -1,3 +1,16 @@
+# getNasaImages
+
+.net console application to get NASA APOD picture.
+
+If executed without parameters get only APOD picture. 
+
+You can download last X days passing it to console like:
+
+> getNasaImages.exe 10
+
+All images will be saved at .\images\ folder.
+
+
 # APOD is 25 Years Old Today (6/16/2020)
   
 Each congratulates APOD's birthday in its own way. Mine was to generate a small .net core application to extract one or more images from the vast collection of the last 25 years.
