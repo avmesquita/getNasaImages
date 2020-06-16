@@ -180,9 +180,12 @@ namespace GetNasaImages
 						html += string.Format("<img class='nasaPic' src='{0}' lowsrc='{1}' alt='{2}'>", hiresimg, lowimg, apod.title);
 					}
 					html += "</div>";
-					html += "<div class='nasaCopyright'>";
-					html += "<span style='font-weight:bold;font-style=none;'>Copyright</span> " + apod.copyright;
-					html += "</div>";
+					if (!string.IsNullOrEmpty(apod.copyright))
+					{
+						html += "<div class='nasaCopyright'>";
+						html += "<span style='font-weight:bold;font-style=none;'>Copyright</span> - " + apod.copyright;
+						html += "</div>";
+					}
 				}
 				else if (apod.media_type == "video")
 				{
@@ -198,11 +201,14 @@ namespace GetNasaImages
 					html += "<div class='nasaImage'>";
 					html += string.Format("<embed class='nasaVideo' src='{0}' alt='{1}'>", apod.url, apod.title);
 					html += "</div>";
-					html += "<div class='nasaCopyright'>";
-					html += "<span style='font-weight:bold;font-style=none;'>Copyright</span> " + apod.copyright;
-					html += "</div>";
+					if (!string.IsNullOrEmpty(apod.copyright))
+					{
+						html += "<div class='nasaCopyright'>";
+						html += "<span style='font-weight:bold;font-style=none;'>Copyright</span> - " + apod.copyright;
+						html += "</div>";
+					}
 				}
-				else 
+				else
 				{
 					Console.WriteLine("Media Type '{0}' is not included to html.\n\n", apod.media_type);
 				}
