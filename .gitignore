@@ -1,0 +1,8 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs/UsingNasaAPI
+/GetNasaImages/bin/Debug/netcoreapp3.1
+/GetNasaImages/obj
+/GetNasaImages/Properties/launchSettings.json

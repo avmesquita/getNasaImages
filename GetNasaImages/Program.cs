@@ -22,7 +22,7 @@ namespace GetNasaImages
 			ServiceCollection serviceCollection = new ServiceCollection();
 			ConfigureServices(serviceCollection);
 
-			loopToPast((args.Length > 1) ? IsInteger(args[1]) : 1);
+			loopToPast((args.Length >= 1) ? IsInteger(args[0]) : 1);
 		}
 
 		private static void ConfigureServices(ServiceCollection serviceCollection)
@@ -51,7 +51,7 @@ namespace GetNasaImages
 			}
 		}
 
-		static void loopToPast(int? days = 1)
+		static void loopToPast(int? days)
 		{
 			DateTime? dt = DateTime.Now;
 			int count = 0;
