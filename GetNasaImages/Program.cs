@@ -159,7 +159,7 @@ namespace GetNasaImages
 							hiresimg = @".\images\HD\" + fileName;
 							client.DownloadFile(new Uri(apod.hdurl), hiresimg);
 						}
-						Console.WriteLine(string.Format("NASA have published  at {0}.\nPicture '{1}' => {2} and {3}.\n\n", apod.date, apod.title, lowimg, hiresimg));
+						Console.WriteLine(string.Format("NASA have published  at {0}.\nPicture '{1}' => SRes = {2} and HiRes = {3}.\n\n", apod.date, apod.title, lowimg, hiresimg));
 					}
 					html += "<div class='nasaDate'>";
 					html += apod.date;
