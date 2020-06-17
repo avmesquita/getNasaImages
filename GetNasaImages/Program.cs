@@ -1,21 +1,25 @@
 ﻿using System;
 using System.IO;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.Net;
 using Microsoft.Extensions.Configuration;
-using System.Net.NetworkInformation;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
+using System.Net.NetworkInformation;
 
 namespace GetNasaImages
 {
 	class Program
 	{
-		public static IConfigurationRoot configuration;
-		public static INasaService nasaService;
+		public static IConfigurationRoot _configuration;
+		public static INasaService _nasaService;
+		public static ILogger _logger;
 
 		static string filePattern = "Nasa-APOD-##DATETIME##-##QUALITY##-##TITLE##.jpg";
+		static string filePath = @".\images\";
+		static string filePathSD = @".\images\SD";
+		static string filePathHD = @".\images\HD";
 
 		/// <summary>
 		/// Main routine
@@ -26,7 +30,9 @@ namespace GetNasaImages
 			ServiceCollection serviceCollection = new ServiceCollection();
 			ConfigureServices(serviceCollection);
 
-			//IServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
+			IServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
+
+			validateFolders();
 
 			loopToPast((args.Length >= 1) ? IsInteger(args[0]) : 1);
 		}
@@ -37,16 +43,23 @@ namespace GetNasaImages
 		/// <param name="serviceCollection"></param>
 		private static void ConfigureServices(ServiceCollection serviceCollection)
 		{
-			configuration = new ConfigurationBuilder()
-			.SetBasePath(Directory.GetParent(AppContext.BaseDirectory).FullName)
-			.AddJsonFile("appsettings.json", false)
-			.Build();
+			_configuration = new ConfigurationBuilder()
+								   .SetBasePath(Directory.GetParent(AppContext.BaseDirectory).FullName)
+								   .AddJsonFile("appsettings.json", false)
+								   .Build();
 
-			serviceCollection.AddSingleton<IConfigurationRoot>(configuration);
+			serviceCollection.AddSingleton<IConfigurationRoot>(_configuration);
 
-			nasaService = new NasaService(configuration["NasaApiKey"]);
+			serviceCollection.AddLogging(configure => configure.AddConsole().AddConfiguration(_configuration));
 
-			serviceCollection.AddSingleton<INasaService>(nasaService);
+			ILoggerFactory loggerFactory = new LoggerFactory();
+			_logger = loggerFactory.CreateLogger<Program>();			
+
+			_nasaService = new NasaService(_configuration["NasaApiKey"]);
+
+			serviceCollection.AddSingleton<INasaService>(_nasaService);
+
+			_logger.LogInformation("[OK] Configure Services");			
 		}
 
 		/// <summary>
@@ -72,7 +85,7 @@ namespace GetNasaImages
 		/// <param name="days"></param>
 		static void loopToPast(int? days)
 		{
-			DateTime? dt = Convert.ToDateTime("2019-10-24");  //DateTime.Now;
+			DateTime? dt = DateTime.Now;
 			int count = 0;
 
 			StringBuilder html = new StringBuilder();
@@ -84,15 +97,21 @@ namespace GetNasaImages
 			html.AppendLine("     <meta name='keywords' content='NASA, APOD, Astronomic, Picture, Day'>");
 			html.AppendLine("     <meta name='author' content='NASA'>");
 			html.AppendLine("     <meta name='viewport' content='width=device-width, initial-scale=1.0'>");
+			html.AppendLine("     <link href='https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk' crossorigin='anonymous'>");
+			html.AppendLine("     <script src='https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js' integrity='sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI' crossorigin='anonymous'></script>");
+			html.AppendLine("     <script src='https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.bundle.min.js' integrity='sha384-1CmrxMRARb6aLqgBO7yyAxTOQE2AKb9GfXnEo760AUcUmFx3ibVJJAzGytlQcNXd' crossorigin='anonymous'></script>");
+			html.AppendLine("     <link href='https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css' rel='stylesheet'>");
+			html.AppendLine("     <link href='https://stackpath.bootstrapcdn.com/bootswatch/4.5.0/superhero/bootstrap.min.css' rel='stylesheet'>");
+			html.AppendLine("     <script src='https://stackpath.bootstrapcdn.com/bootlint/1.1.0/bootlint.min.js'></script>");
 			html.AppendLine("    <STYLE>");
-			html.AppendLine("    .nasaDay{ padding: 20px; } ");
-			html.AppendLine("    .nasaDate{ font-weight:bold; } ");
-			html.AppendLine("    .nasaTitle{ font-weight:bold; } ");
-			html.AppendLine("    .nasaExplanation{ text-align: justify; text-justify: inter - word; padding-top: 10px; padding-bottom: 10px; } ");
-			html.AppendLine("    .nasaCopyright{ font-style:italic; } ");
-			html.AppendLine("    .nasaImage{} ");
-			html.AppendLine("    .nasaPic{ width:100% } ");
-			html.AppendLine("    .nasaVideo{} ");
+			html.AppendLine("      .nasaDay{ padding: 20px; } ");
+			html.AppendLine("      .nasaDate{ font-weight:bold; } ");
+			html.AppendLine("      .nasaTitle{ font-weight:bold; } ");
+			html.AppendLine("      .nasaExplanation{ text-align: justify; text-justify: inter - word; padding-top: 10px; padding-bottom: 10px; } ");
+			html.AppendLine("      .nasaCopyright{ font-style:italic; } ");
+			html.AppendLine("      .nasaImage{} ");
+			html.AppendLine("      .nasaPic{ width:100% } ");
+			html.AppendLine("      .nasaVideo{} ");
 			html.AppendLine("    </STYLE>");
 
 			html.AppendLine("  </HEAD>");
@@ -100,7 +119,7 @@ namespace GetNasaImages
 
 			while (count != days)
 			{
-				NasaAPOD apod = nasaService.getAPOD(false, dt);
+				NasaAPOD apod = _nasaService.getAPOD(false, dt);
 				string htmlSection = SaveAPOD(apod, dt);
 
 				html.AppendLine(htmlSection);
@@ -110,7 +129,9 @@ namespace GetNasaImages
 			}
 			html.AppendLine("  </BODY>");
 			html.AppendLine("</HTML>");
+
 			System.IO.File.WriteAllText(@".\NasaAPOD.html", html.ToString());
+			Console.WriteLine(@"Webpage .\NasaAPOD.html generated with all range images.");
 		}
 
 		/// <summary>
@@ -126,42 +147,32 @@ namespace GetNasaImages
 			{
 				try
 				{
-
-
 					html += "  <div class='nasaDay'>";
-
-					string lowimg = string.Empty;
-					string hiresimg = string.Empty;
 
 					if (apod.media_type == "image")
 					{
-						if (!Directory.Exists(@".\images\"))
-							Directory.CreateDirectory(@".\images\");
-
-						if (!Directory.Exists(@".\images\SD\"))
-							Directory.CreateDirectory(@".\images\SD\");
-
-						if (!Directory.Exists(@".\images\HD\"))
-							Directory.CreateDirectory(@".\images\HD\");
+						string lowimg = string.Empty;
+						string hiresimg = string.Empty;
 
 						using (WebClient client = new WebClient())
 						{
 							if (!string.IsNullOrEmpty(apod.url))
 							{
-								string fileName = filePattern.Replace("##DATETIME##", (dt ?? DateTime.Now).ToString("yyyy-MM-dd"))
-															 .Replace("##QUALITY##", "SD")
-															 .Replace("##TITLE##", normalizeName(apod.title));
-								lowimg = @".\images\SD\" + fileName;
-								client.DownloadFile(new Uri(apod.url), lowimg);
+								lowimg = getFileName(dt, "SD", apod.title);
+
+								if (!File.Exists(lowimg))
+									client.DownloadFile(new Uri(apod.url), lowimg);
+								else
+									Console.WriteLine("File already exists. Download skipped.");
 							}
 
 							if (!string.IsNullOrEmpty(apod.hdurl))
 							{
-								string fileName = filePattern.Replace("##DATETIME##", (dt ?? DateTime.Now).ToString("yyyy-MM-dd"))
-															 .Replace("##QUALITY##", "HD")
-															 .Replace("##TITLE##", normalizeName(apod.title));
-								hiresimg = @".\images\HD\" + fileName;
-								client.DownloadFile(new Uri(apod.hdurl), hiresimg);
+								hiresimg = getFileName(dt, "HD", apod.title);
+								if (!File.Exists(hiresimg))
+									client.DownloadFile(new Uri(apod.hdurl), hiresimg);
+								else
+									Console.WriteLine("File already exists. Download skipped.");
 							}
 							Console.WriteLine(string.Format("NASA have published a picture at {0}.\nBrowse '{1}' => \nSRes  = {2} \nHiRes = {3}.\n\n", apod.date, apod.title, lowimg, hiresimg));
 						}
@@ -220,11 +231,15 @@ namespace GetNasaImages
 							Console.WriteLine("Media Type '{0}' is not included to html.\n\n", apod.media_type);
 							Console.WriteLine(string.Format("NASA have published a {1} at {0}.\nBrowse '{3}' => \n{2}.\n\n", apod.date, apod.media_type, apod.url, apod.title));
 						}
-					}					
+					}
 
 					html += "  </div>";
 				}
-				catch { Console.WriteLine("Error downloading {0}",apod.hdurl); }
+				catch (Exception ex) 
+				{ 
+					Console.WriteLine("Error downloading {0} \n\n{1}\n\n", apod.hdurl,ex.Message);
+					_logger.LogError(ex, ex.Message);
+				}
 			}
 			else
 			{
@@ -241,12 +256,37 @@ namespace GetNasaImages
 		static string normalizeName(string name)
 		{
 			return name.Replace(" ", "-")
-				       .Replace("?", "")
-					   .Replace(@"\", "")
+					   .Replace("?", "-")
+					   .Replace(@"\", "-")
+					   .Replace("/", "-")
+					   .Replace("+", "-")
+					   .Replace("%", "-")
+					   .Replace("!", "-")
 					   .Replace("'", "")
 					   .Replace(",", "-")
 					   .Replace(";", "-")
+					   .Replace(":", "-")
 					   .ToUpper();
+		}
+
+		static string getFileName(DateTime? dt, string quality, string title)
+		{
+			return (quality == "SD" ? filePathSD : filePathHD) 
+				   + filePattern.Replace("##DATETIME##", (dt ?? DateTime.Now).ToString("yyyy-MM-dd"))
+					            .Replace("##QUALITY##", quality)
+					            .Replace("##TITLE##", normalizeName(title));
+		}
+
+		static void validateFolders()
+		{
+			if (!Directory.Exists(filePath))
+				Directory.CreateDirectory(filePath);
+
+			if (!Directory.Exists(filePathSD))
+				Directory.CreateDirectory(filePathSD);
+
+			if (!Directory.Exists(filePathHD))
+				Directory.CreateDirectory(filePathHD);
 		}
 	}
 }
