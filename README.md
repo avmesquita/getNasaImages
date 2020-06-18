@@ -10,6 +10,10 @@ You can download last X days passing it to console like:
 
 All images will be saved at .\images\ folder.
 
+Branch IPFS use a IPFS local server to get all images from nasa and send directly to IPFS.
+
+https://ipfs.io/ipfs/QmYefDVSqtrG2jtbRx9zMoza6R3iEcyfFnQqj1xqFBaLfN
+
 
 # APOD is 25 Years Old Today (6/16/2020)
   
