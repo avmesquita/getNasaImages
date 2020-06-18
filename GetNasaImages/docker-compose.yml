@@ -1,0 +1,22 @@
+version: '3'
+
+services:
+  getNasaImages-app:
+    image: getNasaImages
+    build:
+      context: .
+    networks:
+      - nasaapp-network
+    depends_on:
+      - "ipfs-blockchain"
+
+  ipfs-blockchain:
+    image: ipfs/go-ipfs
+    ports:
+      - "5001:5001"
+    networks:
+      - nasaapp-network
+
+networks: 
+    nasaapp-network:
+      driver: bridge
