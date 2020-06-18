@@ -14,12 +14,15 @@ namespace GetNasaImages
 	{
 		public static IConfigurationRoot _configuration;
 		public static INasaService _nasaService;
+		public static IIpfsService _ipfsService;
 		public static ILogger _logger;
+		public static StoreLocation _storeLocation;
 
 		static string filePattern = "Nasa-APOD-##DATETIME##-##QUALITY##-##TITLE##.jpg";
 		static string filePath = @".\images\";
 		static string filePathSD = @".\images\SD";
 		static string filePathHD = @".\images\HD";
+		static string ipfsMainCluster = "https://ipfs.io/ipfs/";
 
 		/// <summary>
 		/// Main routine
@@ -43,23 +46,33 @@ namespace GetNasaImages
 		/// <param name="serviceCollection"></param>
 		private static void ConfigureServices(ServiceCollection serviceCollection)
 		{
+			// CONFIGURATION FILE
 			_configuration = new ConfigurationBuilder()
 								   .SetBasePath(Directory.GetParent(AppContext.BaseDirectory).FullName)
 								   .AddJsonFile("appsettings.json", false)
 								   .Build();
-
 			serviceCollection.AddSingleton<IConfigurationRoot>(_configuration);
 
+			// LOGGER
 			serviceCollection.AddLogging(configure => configure.AddConsole().AddConfiguration(_configuration));
-
 			ILoggerFactory loggerFactory = new LoggerFactory();
-			_logger = loggerFactory.CreateLogger<Program>();			
+			_logger = loggerFactory.CreateLogger<Program>();
 
+			// STORE LOCATION
+			if (_configuration["StoreLocation"].ToUpper().Equals("IPFS"))
+				_storeLocation = StoreLocation.Ipfs;
+			else
+				_storeLocation = StoreLocation.Local;
+
+			// NASA
 			_nasaService = new NasaService(_configuration["NasaApiKey"]);
-
 			serviceCollection.AddSingleton<INasaService>(_nasaService);
 
-			_logger.LogInformation("[OK] Configure Services");			
+			// IPFS
+			_ipfsService = new IpfsService(_configuration["IpfsHost"]);
+			serviceCollection.AddSingleton<IIpfsService>(_ipfsService);
+
+			_logger.LogInformation("[OK] Configure Services");
 		}
 
 		/// <summary>
@@ -83,7 +96,7 @@ namespace GetNasaImages
 		/// Main loop to get pictures
 		/// </summary>
 		/// <param name="days"></param>
-		static void loopToPast(int? days)
+		static void loopToPast(int? days, StoreLocation sl = StoreLocation.Ipfs)
 		{
 			DateTime? dt = DateTime.Now;
 			int count = 0;
@@ -120,11 +133,30 @@ namespace GetNasaImages
 			while (count != days)
 			{
 				NasaAPOD apod = _nasaService.getAPOD(false, dt);
-				string htmlSection = SaveAPOD(apod, dt);
+
+				string htmlSection = string.Empty;
+
+				switch (sl)
+				{
+					case StoreLocation.Local:
+						htmlSection = SaveAPOD(apod, dt);
+						break;
+
+					case StoreLocation.Ipfs:
+						htmlSection = SaveIpfs(apod, dt);
+						break;
+
+					default:
+						htmlSection = SaveAPOD(apod, dt);
+						break;
+				}
 
 				html.AppendLine(htmlSection);
 
 				dt = dt?.AddDays(-1);
+
+			    Console.WriteLine("\nProgress = {0}/{1}\n", count+1, days);
+
 				count++;
 			}
 			html.AppendLine("  </BODY>");
@@ -132,10 +164,15 @@ namespace GetNasaImages
 
 			System.IO.File.WriteAllText(@".\NasaAPOD.html", html.ToString());
 			Console.WriteLine(@"Webpage .\NasaAPOD.html generated with all range images.");
+
+			var nasaHTML = _ipfsService.PostLocalFile(@".\NasaAPOD.html");
+			Console.WriteLine(@"Webpage published in IPFS at {0}", ipfsMainCluster + nasaHTML.Hash);
+
+			//nasaHTML.Hash
 		}
 
 		/// <summary>
-		/// Save APOD images
+		/// Save APOD images at local folder
 		/// </summary>
 		/// <param name="apod"></param>
 		/// <param name="dt"></param>
@@ -235,9 +272,9 @@ namespace GetNasaImages
 
 					html += "  </div>";
 				}
-				catch (Exception ex) 
-				{ 
-					Console.WriteLine("Error downloading {0} \n\n{1}\n\n", apod.hdurl,ex.Message);
+				catch (Exception ex)
+				{
+					Console.WriteLine("Error downloading {0} \n\n{1}\n\n", apod.hdurl, ex.Message);
 					_logger.LogError(ex, ex.Message);
 				}
 			}
@@ -247,6 +284,104 @@ namespace GetNasaImages
 			}
 			return html;
 		}
+
+		/// <summary>
+		/// Save APOD at IPFS host
+		/// </summary>
+		/// <param name="apod"></param>
+		/// <param name="dt"></param>
+		/// <param name="htmlLoadImagesFromInternet"></param>
+		/// <returns></returns>
+		static string SaveIpfs(NasaAPOD apod, DateTime? dt)
+		{
+			string html = string.Empty;
+
+			if (apod != null)
+			{
+				try
+				{
+					html += "  <div class='nasaDay'>";
+
+					if (apod.media_type == "image")
+					{
+						string lowimg = string.Empty;
+						string hiresimg = string.Empty;
+
+						var sdfile = _ipfsService.PostFile(apod.url);
+						var hdfile = _ipfsService.PostFile(apod.hdurl);
+
+						if (sdfile != null && hdfile != null)
+						{
+							lowimg = ipfsMainCluster + sdfile.Hash;
+							hiresimg = ipfsMainCluster + hdfile.Hash;
+
+							Console.WriteLine(string.Format("NASA have published a picture at {0}.\nBrowse '{1}' => \nSRes  = {2} \nHiRes = {3}.\n\n", apod.date, apod.title, lowimg, hiresimg));
+
+							html += "<div class='nasaDate'>";
+							html += apod.date;
+							html += "</div>";
+							html += "<div class='nasaTitle'>";
+							html += apod.title;
+							html += "</div>";
+							html += "<div class='nasaExplanation'>";
+							html += apod.explanation;
+							html += "</div>";
+							html += "<div class='nasaImage'>";
+							html += string.Format("<img class='nasaPic' src='{0}' lowsrc='{1}' alt='{2}'>", hiresimg, lowimg, apod.title);
+							html += "</div>";
+							if (!string.IsNullOrEmpty(apod.copyright))
+							{
+								html += "<div class='nasaCopyright'>";
+								html += "<span style='font-weight:bold;font-style=none;'>Copyright</span> - " + apod.copyright;
+								html += "</div>";
+							}
+						}
+					}
+					else if (apod.media_type == "video")
+					{
+						html += "<div class='nasaDate'>";
+						html += apod.date;
+						html += "</div>";
+						html += "<div class='nasaTitle'>";
+						html += apod.title;
+						html += "</div>";
+						html += "<div class='nasaExplanation'>";
+						html += apod.explanation;
+						html += "</div>";
+						html += "<div class='nasaImage'>";
+						html += string.Format("<embed class='nasaVideo' src='{0}' alt='{1}'>", apod.url, apod.title);
+						html += "</div>";
+						if (!string.IsNullOrEmpty(apod.copyright))
+						{
+							html += "<div class='nasaCopyright'>";
+							html += "<span style='font-weight:bold;font-style=none;'>Copyright</span> - " + apod.copyright;
+							html += "</div>";
+						}
+						Console.WriteLine(string.Format("NASA have published a video at {0}.\nBrowse '{3}' => \n{2}.\n\n", apod.date, apod.media_type, apod.url, apod.title));
+					}
+					else
+					{
+						if (!string.IsNullOrEmpty(apod.media_type))
+						{
+							Console.WriteLine("Media Type '{0}' is not included to html.\n\n", apod.media_type);
+							Console.WriteLine(string.Format("NASA have published a {1} at {0}.\nBrowse '{3}' => \n{2}.\n\n", apod.date, apod.media_type, apod.url, apod.title));
+						}
+					}
+					html += "  </div>";
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine("Error downloading {0} \n\n{1}\n\n", apod.hdurl, ex.Message);
+					_logger.LogError(ex, ex.Message);
+				}
+			}
+			else
+			{
+				Console.WriteLine(string.Format("NASA do not have published image at {0}.\n\n", (dt ?? DateTime.Now).ToString("yyyy-MM-dd")));
+			}
+			return html;
+		}
+
 
 		/// <summary>
 		/// Normalize Title to fill filename correctly
@@ -271,10 +406,10 @@ namespace GetNasaImages
 
 		static string getFileName(DateTime? dt, string quality, string title)
 		{
-			return (quality == "SD" ? filePathSD : filePathHD) 
+			return (quality == "SD" ? filePathSD : filePathHD)
 				   + filePattern.Replace("##DATETIME##", (dt ?? DateTime.Now).ToString("yyyy-MM-dd"))
-					            .Replace("##QUALITY##", quality)
-					            .Replace("##TITLE##", normalizeName(title));
+								.Replace("##QUALITY##", quality)
+								.Replace("##TITLE##", normalizeName(title));
 		}
 
 		static void validateFolders()
