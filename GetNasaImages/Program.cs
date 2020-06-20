@@ -7,6 +7,8 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using System.Net.NetworkInformation;
+using System.Collections.Generic;
+using Newtonsoft.Json;
 
 namespace GetNasaImages
 {
@@ -37,7 +39,12 @@ namespace GetNasaImages
 
 			validateFolders();
 
-			loopToPast((args.Length >= 1) ? IsInteger(args[0]) : 1);
+			var APODs = getAPODDB();
+
+			if (APODs == null)
+				APODs = GenerateAPODDB();
+
+			processAPODDBtoHTML(APODs, _storeLocation);
 		}
 
 		/// <summary>
@@ -76,31 +83,29 @@ namespace GetNasaImages
 		}
 
 		/// <summary>
-		/// Simple validation
+		/// Generate APOD Database in JSON
 		/// </summary>
-		/// <param name="i"></param>
-		/// <returns></returns>
-		static Int32? IsInteger(string i)
+		private static IList<NasaAPOD> GenerateAPODDB()
 		{
-			try
-			{
-				return Convert.ToInt32(i);
-			}
-			catch
-			{
-				return null;
-			}
+			var APODs = getAllAPODs();
+			var sAPODS = JsonConvert.SerializeObject(APODs);
+			System.IO.File.WriteAllText(@".\APODsDB.js", sAPODS);
+			return APODs;
 		}
 
 		/// <summary>
-		/// Main loop to get pictures
+		/// Get APOD Database in JSON
 		/// </summary>
-		/// <param name="days"></param>
-		static void loopToPast(int? days, StoreLocation sl = StoreLocation.Ipfs)
+		/// <returns></returns>
+		private static IList<NasaAPOD> getAPODDB()
 		{
-			DateTime? dt = DateTime.Now;
-			int count = 0;
+			var APODs = System.IO.File.ReadAllText(@".\APODsDB.js");
 
+			return JsonConvert.DeserializeObject<List<NasaAPOD>>(APODs);
+		}
+
+		static void processAPODDBtoHTML(IList<NasaAPOD> apods, StoreLocation sl = StoreLocation.Ipfs)
+		{
 			StringBuilder html = new StringBuilder();
 			html.AppendLine("<HTML>");
 			html.AppendLine("  <HEAD>");
@@ -130,34 +135,26 @@ namespace GetNasaImages
 			html.AppendLine("  </HEAD>");
 			html.AppendLine("  <BODY>");
 
-			while (count != days)
+			foreach (var apod in apods)
 			{
-				NasaAPOD apod = _nasaService.getAPOD(false, dt);
-
 				string htmlSection = string.Empty;
 
 				switch (sl)
 				{
 					case StoreLocation.Local:
-						htmlSection = SaveAPOD(apod, dt);
+						htmlSection = SaveAPOD(apod,true);
 						break;
 
 					case StoreLocation.Ipfs:
-						htmlSection = SaveIpfs(apod, dt);
+						htmlSection = SaveIpfs(apod);
 						break;
 
 					default:
-						htmlSection = SaveAPOD(apod, dt);
+						htmlSection = SaveAPOD(apod,true);
 						break;
 				}
 
 				html.AppendLine(htmlSection);
-
-				dt = dt?.AddDays(-1);
-
-			    Console.WriteLine("\nProgress = {0}/{1}\n", count+1, days);
-
-				count++;
 			}
 			html.AppendLine("  </BODY>");
 			html.AppendLine("</HTML>");
@@ -166,9 +163,53 @@ namespace GetNasaImages
 			Console.WriteLine(@"Webpage .\NasaAPOD.html generated with all range images.");
 
 			var nasaHTML = _ipfsService.PostLocalFile(@".\NasaAPOD.html");
-			Console.WriteLine(@"Webpage published in IPFS at {0}", ipfsMainCluster + nasaHTML.Hash);
+		}
 
-			//nasaHTML.Hash
+		/// <summary>
+		/// Simple validation
+		/// </summary>
+		/// <param name="i"></param>
+		/// <returns></returns>
+		static Int32? IsInteger(string i)
+		{
+			try
+			{
+				return Convert.ToInt32(i);
+			}
+			catch
+			{
+				return null;
+			}
+		}
+
+		static IList<NasaAPOD> getAllAPODs()
+		{
+			int fail = 0;
+			int progress = 0;
+			DateTime dt = DateTime.Now;
+			List<NasaAPOD> allAPODs = new List<NasaAPOD>();
+
+			while (fail < 100)
+			{
+				NasaAPOD apod = _nasaService.getAPOD(false, dt);
+
+				if (apod != null && !string.IsNullOrEmpty(apod.title))
+				{
+					allAPODs.Add(apod);
+					fail = 0;
+					progress++;
+				}
+				else
+				{
+					fail++;
+				}
+				Console.Clear();
+				Console.WriteLine("APODs processed = {0} | {1}", progress, dt.ToString("dd/MM/yyyy"));
+
+				dt = dt.AddDays(-1);
+			}
+
+			return allAPODs;
 		}
 
 		/// <summary>
@@ -176,7 +217,7 @@ namespace GetNasaImages
 		/// </summary>
 		/// <param name="apod"></param>
 		/// <param name="dt"></param>
-		static string SaveAPOD(NasaAPOD apod, DateTime? dt, bool htmlLoadImagesFromInternet = false)
+		static string SaveAPOD(NasaAPOD apod, bool htmlLoadImagesFromInternet = false)
 		{
 			string html = string.Empty;
 
@@ -195,7 +236,7 @@ namespace GetNasaImages
 						{
 							if (!string.IsNullOrEmpty(apod.url))
 							{
-								lowimg = getFileName(dt, "SD", apod.title);
+								lowimg = getFileName(apod.date, "SD", apod.title);
 
 								if (!File.Exists(lowimg))
 									client.DownloadFile(new Uri(apod.url), lowimg);
@@ -205,7 +246,7 @@ namespace GetNasaImages
 
 							if (!string.IsNullOrEmpty(apod.hdurl))
 							{
-								hiresimg = getFileName(dt, "HD", apod.title);
+								hiresimg = getFileName(apod.date, "HD", apod.title);
 								if (!File.Exists(hiresimg))
 									client.DownloadFile(new Uri(apod.hdurl), hiresimg);
 								else
@@ -280,7 +321,7 @@ namespace GetNasaImages
 			}
 			else
 			{
-				Console.WriteLine(string.Format("NASA do not have published image at {0}.\n\n", (dt ?? DateTime.Now).ToString("yyyy-MM-dd")));
+				Console.WriteLine(string.Format("NASA do not have published image at {0}.\n\n", apod.date));
 			}
 			return html;
 		}
@@ -292,7 +333,7 @@ namespace GetNasaImages
 		/// <param name="dt"></param>
 		/// <param name="htmlLoadImagesFromInternet"></param>
 		/// <returns></returns>
-		static string SaveIpfs(NasaAPOD apod, DateTime? dt)
+		static string SaveIpfs(NasaAPOD apod)
 		{
 			string html = string.Empty;
 
@@ -377,11 +418,10 @@ namespace GetNasaImages
 			}
 			else
 			{
-				Console.WriteLine(string.Format("NASA do not have published image at {0}.\n\n", (dt ?? DateTime.Now).ToString("yyyy-MM-dd")));
+				Console.WriteLine(string.Format("NASA do not have published image at {0}.\n\n", apod.date));
 			}
 			return html;
 		}
-
 
 		/// <summary>
 		/// Normalize Title to fill filename correctly
@@ -404,10 +444,10 @@ namespace GetNasaImages
 					   .ToUpper();
 		}
 
-		static string getFileName(DateTime? dt, string quality, string title)
+		static string getFileName(string dt, string quality, string title)
 		{
 			return (quality == "SD" ? filePathSD : filePathHD)
-				   + filePattern.Replace("##DATETIME##", (dt ?? DateTime.Now).ToString("yyyy-MM-dd"))
+				   + filePattern.Replace("##DATETIME##", dt)
 								.Replace("##QUALITY##", quality)
 								.Replace("##TITLE##", normalizeName(title));
 		}
